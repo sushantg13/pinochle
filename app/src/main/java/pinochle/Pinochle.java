@@ -12,6 +12,15 @@ import pinochle.melds.TenToAceRunMeld;
 import pinochle.melds.RoyalMarriageMeld;
 import pinochle.melds.AceRunExtraKingMeld;
 import pinochle.melds.AceRunExtraQueenMeld;
+import pinochle.melds.DixMeld;
+import pinochle.melds.CommonMarriageMeld;
+import pinochle.melds.PinochleMeld;
+import pinochle.melds.AcesAroundMeld;
+import pinochle.melds.AceRunRoyalMarriageMeld;
+import pinochle.melds.DoublePinochleMeld;
+import pinochle.melds.JacksAboundMeld;
+import pinochle.melds.DoubleRunMeld;
+
 
 @SuppressWarnings("serial")
 public class Pinochle extends CardGame {
@@ -1016,12 +1025,30 @@ public class Pinochle extends CardGame {
 
         // Initialize meld evaluators
         meldEvaluators = new ArrayList<>();
-        // Order is important: highest points first, as per specification.
+        
+        // Add original melds first (their relative order was based on the old implementation)
         meldEvaluators.add(new AceRunExtraKingMeld());    // 190
         meldEvaluators.add(new AceRunExtraQueenMeld());   // 190
         meldEvaluators.add(new TenToAceRunMeld());        // 150
         meldEvaluators.add(new RoyalMarriageMeld());      // 40
-        // Add other melds here as they are implemented, in order.
+
+        // Add additional melds if enabled by properties
+        boolean additionalMeldsEnabled = Boolean.parseBoolean(properties.getProperty("melds.additional", "false"));
+        if (additionalMeldsEnabled) {
+            meldEvaluators.add(new DoubleRunMeld());             // 1500
+            meldEvaluators.add(new JacksAboundMeld());           // 400
+            meldEvaluators.add(new DoublePinochleMeld());        // 300
+            meldEvaluators.add(new AceRunRoyalMarriageMeld());   // 230
+            meldEvaluators.add(new AcesAroundMeld());            // 100
+            meldEvaluators.add(new PinochleMeld());              // 40
+            meldEvaluators.add(new CommonMarriageMeld());        // 20
+            meldEvaluators.add(new DixMeld());                   // 10
+        }
+
+        // Sort all meld evaluators by points, descending, to ensure correct evaluation order
+        // If points are equal, the existing relative order (from adding them) will be preserved by a stable sort,
+        // or it won't matter if they don't share cards.
+        meldEvaluators.sort(Comparator.comparingInt(Meld::getPoints).reversed());
     }
 
 }
