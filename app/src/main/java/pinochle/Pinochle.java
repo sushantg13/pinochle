@@ -20,6 +20,8 @@ import pinochle.melds.AceRunRoyalMarriageMeld;
 import pinochle.melds.DoublePinochleMeld;
 import pinochle.melds.JacksAboundMeld;
 import pinochle.melds.DoubleRunMeld;
+import pinochle.bidding.BiddingStrategy;
+import pinochle.bidding.BiddingStrategyFactory;
 
 
 @SuppressWarnings("serial")
@@ -46,6 +48,7 @@ public class Pinochle extends CardGame {
     private int currentBid = 0;
     private final Deck deck = new Deck(Suit.values(), Rank.values(), "cover");
     private List<Meld> meldEvaluators;
+    private BiddingStrategy computerBiddingStrategy;
     private final Location[] handLocations = {
             new Location(350, 625),
             new Location(350, 75),
@@ -524,29 +527,45 @@ public class Pinochle extends CardGame {
     private void askForBidForPlayerIndex(int playerIndex) {
 
         if (playerIndex == COMPUTER_PLAYER_INDEX) {
-            int bidValue;
+            int bidActionValue; // This will be the direct bid, or the increment, or 0 for pass
+            boolean isFirstComputerBid = (currentBid == 0 && playerIndex == bidWinPlayerIndex) || (currentBid == 0 && Arrays.stream(scores).sum() == 0); // A bit complex to determine true first bidder status here, simplify for now
+                                                                                                    // Let's assume if currentBid is 0, it's effectively an opening bid scenario for the computer.
+                                                                                                    // Or, more simply, the strategy itself handles "isFirstBidder" logic based on currentBid.
+                                                                                                    // The BiddingStrategy interface has `isFirstBidder` parameter.
+                                                                                                    // We need to determine if this *turn* is the computer's first chance to bid in the round.
+            boolean computerIsEffectivelyFirstBidder = (currentBid == 0); // Simplified: if no bid yet, computer is opening.
+
             if (isAuto && computerAutoBids != null && computerAutoBidIndex < computerAutoBids.size()) {
-                bidValue = computerAutoBids.get(computerAutoBidIndex);
+                bidActionValue = computerAutoBids.get(computerAutoBidIndex); // Auto bids are direct values (0, 10, 20)
                 computerAutoBidIndex++;
             } else {
-                Random random = new Random();
-                int randomBidBase = random.nextInt(3);
-                bidValue = randomBidBase * 10;
+                // For smart bidding, trumpSuit is not yet determined. SmartBiddingStrategy will assume one.
+                // The BiddingStrategy's determineBid will return:
+                // - if opening: the total bid amount (e.g. meldScore)
+                // - if subsequent: the increment (10 or 20), or 0 to pass
+                bidActionValue = computerBiddingStrategy.determineBid(hands[COMPUTER_PLAYER_INDEX], currentBid, computerIsEffectivelyFirstBidder, this.meldEvaluators, null);
             }
 
-            updateBidText(playerIndex, currentBid + bidValue);
-
-            delay(thinkingTime);
-            if (bidValue == 0) {
-                hasComputerPassed = true;
-                hasHumanBid = false;
-
-                return;
+            if (computerIsEffectivelyFirstBidder) {
+                if (bidActionValue > 0) { // Strategy returned an opening bid amount
+                    updateBidText(playerIndex, bidActionValue); // Show what computer bids
+                    delay(thinkingTime);
+                    currentBid = bidActionValue;
+                    updateBidText(playerIndex, 0); // Clear "New Bid" for next player
+                } else { // Strategy decided to pass even as first bidder (e.g. meld score is 0)
+                    hasComputerPassed = true;
+                }
+            } else { // Computer is making a subsequent bid or passing
+                if (bidActionValue > 0) { // Strategy returned an increment
+                    updateBidText(playerIndex, currentBid + bidActionValue); // Show what computer bids
+                    delay(thinkingTime);
+                    currentBid += bidActionValue;
+                    updateBidText(playerIndex, 0); // Clear "New Bid" for next player
+                } else { // Strategy returned 0, meaning pass
+                    hasComputerPassed = true;
+                }
             }
-
-            currentBid += bidValue;
-            updateBidText(playerIndex, 0);
-            hasHumanBid = false;
+            hasHumanBid = false; // Reset human bid flag after computer's turn
         } else {
             displayBidButtons(true);
             updateBidText(playerIndex, 0);
@@ -1049,6 +1068,10 @@ public class Pinochle extends CardGame {
         // If points are equal, the existing relative order (from adding them) will be preserved by a stable sort,
         // or it won't matter if they don't share cards.
         meldEvaluators.sort(Comparator.comparingInt(Meld::getPoints).reversed());
+
+        // Initialize bidding strategy for the computer player
+        // This needs to be after meldEvaluators is fully initialized.
+        this.computerBiddingStrategy = BiddingStrategyFactory.createBiddingStrategy(properties, this.meldEvaluators, seed);
     }
 
 }
