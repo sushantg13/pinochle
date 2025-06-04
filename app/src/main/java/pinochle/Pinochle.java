@@ -87,8 +87,8 @@ public class Pinochle extends CardGame {
     private int humanBid = 0;
     private final int BID_SELECTION_VALUE = 10;
     private final int MAX_SINGLE_BID = 20;
-    private final int COMPUTER_PLAYER_INDEX = 0;
-    private final int HUMAN_PLAYER_INDEX = 1;
+    public final int COMPUTER_PLAYER_INDEX = 0;
+    public final int HUMAN_PLAYER_INDEX = 1;
     private boolean hasComputerPassed = false;
     private boolean hasHumanPassed = false;
     private int bidWinPlayerIndex = 0;
@@ -1178,6 +1178,87 @@ public class Pinochle extends CardGame {
         }
         return selected;
     }
+
+    public Hand getPack() {
+        return this.pack;
+    }
+
+    public Deck getDeck() {
+        return this.deck;
+    }
+
+    // A placeholder for showing the two face-up cards.
+// You will need to implement the GUI logic for this.
+    public void showFaceUpCards(Hand hand) {
+        // For now, we can just print to console.
+        // In your final version, you would add these cards to the game grid at a specific location.
+        System.out.println("Face up cards: " + convertCardListoString(hand));
+        hand.setView(this, new RowLayout(new Location(350, 250), 100));
+        hand.draw();
+    }
+
+    public void hideFaceUpCards(Hand hand){
+        hand.removeAll(false);
+    }
+
+    // A placeholder for letting a player choose a card from a hand.
+
+    public Card letPlayerChooseCard(int playerIndex, Hand availableCards) {
+        if (playerIndex == COMPUTER_PLAYER_INDEX || isAuto) {
+            return randomCard(availableCards.getCardList());
+        } else {
+            // For a human player, enable clicking on the face-up cards.
+            setStatus("Human, please double-click a card to take.");
+            selected = null;
+
+            // THIS IS THE NEW, REQUIRED LINE:
+            availableCards.setTouchEnabled(true);
+
+            availableCards.addCardListener(new CardAdapter() {
+                public void leftDoubleClicked(Card card) {
+                    selected = card;
+                }
+            });
+            while(selected == null) delay(delayTime);
+            return selected;
+        }
+    }
+
+    public void letPlayerDiscard(int playerIndex) {
+        Hand playerHand = getHands()[playerIndex];
+        int cardsToDiscard = playerHand.getNumberOfCards() - nbStartCards;
+
+        if (playerIndex == COMPUTER_PLAYER_INDEX || isAuto) {
+            // Computer discard logic as per specification
+            // "discard cards from the non-trump suit that has the fewest cards"
+            List<Card> toDiscard = new ArrayList<>();
+            // This is a simplified version of the logic. You may need to build a more robust
+            // implementation that correctly counts cards in non-trump suits.
+            for(int i = 0; i < cardsToDiscard; i++){
+                // A simple strategy: discard the first card not of the trump suit.
+                for(Card card : playerHand.getCardList()){
+                    Suit suit = (Suit)card.getSuit();
+                    if(!suit.getSuitShortHand().equals(trumpSuit)){
+                        toDiscard.add(card);
+                        break;
+                    }
+                }
+            }
+            for(Card card : toDiscard){
+                card.removeFromHand(true);
+            }
+
+        } else {
+            // Human discard logic
+            setStatus("Please discard " + cardsToDiscard + " cards.");
+            for(int i = 0; i < cardsToDiscard; i++){
+                selected = null;
+                while(selected == null) delay(delayTime);
+                selected.removeFromHand(true);
+            }
+        }
+    }
+
 
 
 

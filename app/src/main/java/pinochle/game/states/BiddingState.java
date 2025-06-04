@@ -16,15 +16,14 @@ public class BiddingState implements GameState {
         context.askForBid();
 
         // After bidding is complete, transition to the next state.
-        // This is where you will add the logic for Task 3.
+        // THIS IS THE NEW LOGIC
         boolean isCutThroat = Boolean.parseBoolean(context.getProperties().getProperty("mode.cutthroat", "false"));
 
         if (isCutThroat) {
-            // If we were implementing Task 3 now, we would go to CutThroatState
-            // For now, we go to Trump Selection
-            // context.setState(new CutThroatExchangeState());
-            context.setState(new TrumpSelectionState());
+            // If cut-throat mode is on, go to the exchange state next.
+            context.setState(new CutThroatExchangeState());
         } else {
+            // Otherwise, proceed as normal to trump selection.
             context.setState(new TrumpSelectionState());
         }
     }
